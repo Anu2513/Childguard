@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ChildGuard — Home</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="assets/js/dashboard.js" defer></script>
+  <script type="module" src="assets/js/navigation.js" defer></script>
+
+  <style>
+    .btn-primary {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+    .btn-primary:hover { background: #005ecb; transform: scale(1.05); }
+
+    .btn-secondary {
+      background: #ccc;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .btn-secondary:hover { background: #bbb; }
+
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+    }
+    .modal.hidden { display: none; }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      width: 360px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .modal-content h3 { margin-bottom: 18px; color: #0056D2; }
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 15px;
+    }
+    .modal-content .actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .child-list {
+      margin-top: 18px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 16px;
+    }
+    .child-list h4 { margin-bottom: 8px; color: #0056D2; }
+    .child-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* small dashboard grid tweaks for new controls */
+    .grid { display:flex; gap:12px; flex-wrap:wrap; }
+    .card { background:#fff; padding:14px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.04); min-width:220px; }
+    .small { color:#444; margin:6px 0 0 0; }
+    .control-row { display:flex; align-items:center; gap:8px; }
+    .input-small { width:100px; padding:8px; border-radius:6px; border:1px solid #ddd; }
+  </style>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <div class="dashboard-header">
+      <h1>Dashboard Overview</h1>
+      <button id="addChildBtn" class="btn-primary">+ Add Child</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>VPN</h3>
+        <div class="control-row" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="vpnToggle" aria-label="Toggle VPN for child">
+            </label>
+            <div>
+              <div id="vpnLabel" style="font-weight:600">Loading…</div>
+              <div style="font-size:12px;color:#666">Turn VPN on to protect internet access for the child.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Overview</h3>
+        <p id="timeUsedSummary" class="small">—</p>
+        <p id="timeUsedNow" class="small">—</p>
+      </div>
+
+      <div class="card">
+        <h3>Blocked Attempts Today</h3>
+        <p id="blockedAttemptsToday" class="small">—</p>
+      </div>
+    </div>
+
+    <section style="margin-top:18px">
+      <div class="card">
+        <h3>Screen Time (Last 7 days)</h3>
+        <canvas id="screenTimeSmall" height="80"></canvas>
+      </div>
+    </section>
+
+    <section class="child-list" id="childListSection">
+      <h4>Registered Children</h4>
+      <div id="childList">Loading...</div>
+    </section>
+
+    <div id="childModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Add Child Account</h3>
+        <form id="childForm">
+          <input id="childName" type="text" placeholder="Child Name" required />
+          <input id="childEmail" type="email" placeholder="Child Email" required />
+          <input id="childPassword" type="password" placeholder="Child Password" required />
+          <input id="deviceId" type="text" placeholder="Device ID (optional)" />
+          <div class="actions">
+            <button type="submit" class="btn-primary">Add</button>
+            <button type="button" id="closeModal" class="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import supabase from './assets/js/supabaseClient.js';
+    import initNav from './assets/js/navigation.js';
+    import { safeText } from './assets/js/utils.js';
+
+    /* ------------------------------------------------------ */
+
+    const addChildBtn = document.getElementById('addChildBtn');
+    const modal = document.getElementById('childModal');
+    const closeModal = document.getElementById('closeModal');
+    const form = document.getElementById('childForm');
+    const childList = document.getElementById('childList');
+
+    addChildBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    closeModal.addEventListener('click', () => modal.classList.add('hidden'));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('childName').value.trim();
+      const email = document.getElementById('childEmail').value.trim();
+      const password = document.getElementById('childPassword').value;
+      const device_id = document.getElementById('deviceId').value.trim() || null;
+
+      // 1) get current authenticated user
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        console.error('getUser error', userErr);
+        alert('Authentication error — please sign in again.');
+        return;
+      }
+      const user = userData?.user;
+      if (!user) {
+        alert('Parent not authenticated. Please log in again.');
+        return;
+      }
+      const parent_id = user.id;
+
+      // ====== NEW: check for existing parent with same email ======
+      // If a parent row exists with same email but different id, abort to avoid unique constraint error.
+      try {
+        const existing = await supabase
+          .from('parents')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        const existingId = existing && existing.data ? existing.data.id : null;
+        if (existingId && String(existingId) !== String(parent_id)) {
+          console.warn('Parent conflict detected:', existing);
+          alert('A parent record with this email already exists in the database. Please sign in with that parent account or contact admin to remove the duplicate entry.');
+          return;
+        }
+      } catch (err) {
+        console.error('Error while checking existing parent row:', err);
+        alert('Could not verify parent account. See console for details.');
+        return;
+      }
+
+      // 2) ensure parent row exists in parents table (upsert will insert or update)
+      const { error: pErr } = await supabase
+        .from('parents')
+        .upsert([{
+          id: parent_id,
+          email: user.email,
+          name: user.user_metadata?.full_name ?? null,
+          password: null,
+          family_key: (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+        }], { onConflict: 'id' });
+
+      if (pErr) {
+        console.error('Parent upsert error:', pErr);
+        alert('Could not verify parent account. Try again.');
+        return;
+      }
+
+      // 3) insert child (parent guaranteed to exist)
+      const { data: cData, error: cErr } = await supabase
+        .from('children')
+        .insert([{ parent_id, name, email, password, device_id }]);
+
+      if (cErr) {
+        console.error('Child insert error:', cErr);
+        alert('Failed to add child: ' + (cErr.message || JSON.stringify(cErr)));
+        return;
+      }
+
+      // success
+      modal.classList.add('hidden');
+      form.reset();
+      await loadChildren();
+    });
+
+    async function loadChildren() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { childList.innerHTML = "Please log in."; return; }
+
+      const { data, error } = await supabase
+        .from('children')
+        .select('id, name, email, device_id')
+        .eq('parent_id', user.id);
+
+      if (error) { childList.innerHTML = "Error loading children."; console.error(error); return; }
+      if (!data?.length) {
+        childList.innerHTML = "<p>No children registered.</p>";
+        return;
+      }
+
+      childList.innerHTML = data.map(c => `
+        <div class="child-item">
+          <div>
+            <strong>${safeText(c.name)}</strong><br>
+            <small>${safeText(c.email)}</small><br>
+            <small>${safeText(c.device_id) || '—'}</small>
+          </div>
+          <button class="btn-secondary" onclick="deleteChild('${c.id}')">Remove</button>
+        </div>
+      `).join('');
+    }
+
+    window.deleteChild = async (id) => {
+      if (!confirm("Delete child?")) return;
+      const { error } = await supabase.from('children').delete().eq('id', id);
+      if (error) {
+        console.error('delete child error:', error);
+      } else {
+        loadChildren();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initNav();
+      await loadChildren();
+      // sync initial vpn UI for current active child
+      try {
+        const active = (() => { try { return localStorage.getItem('active_child_id'); } catch (e) { return null; } })();
+        loadChildSettingsToUI(active);
+      } catch (e) {}
+    });
+
+    /* ---------------- VPN wiring (no time limit input) ---------------- */
+
+    // safe element helper
+    function $id(id) { try { return document.getElementById(id); } catch (e) { return null; } }
+
+    async function loadChildSettingsToUI(childId) {
+      const vpnToggle = $id('vpnToggle');
+      const vpnLabel = $id('vpnLabel');
+
+      if (!vpnToggle || !vpnLabel) return;
+
+      if (!childId) {
+        vpnToggle.checked = false;
+        vpnToggle.disabled = true;
+        vpnLabel.textContent = 'OFF';
+        return;
+      }
+
+      vpnToggle.disabled = true;
+      try {
+        const res = await supabase.from('child_settings').select('vpn_enabled').eq('child_id', childId).single();
+        if (res && res.error) {
+          console.warn('loadChildSettingsToUI error', res.error);
+          vpnToggle.checked = false;
+          vpnLabel.textContent = 'OFF';
+        } else {
+          const s = res && res.data ? res.data : null;
+          const v = s ? !!s.vpn_enabled : false;
+          vpnToggle.checked = v;
+          vpnLabel.textContent = v ? 'ON' : 'OFF';
+        }
+      } catch (err) {
+        console.error('loadChildSettingsToUI unexpected', err);
+      } finally {
+        vpnToggle.disabled = false;
+      }
+    }
+
+    async function upsertChildSettingsVpn(childId, enabled) {
+      if (!childId) return false;
+      const payload = { child_id: childId, vpn_enabled: !!enabled };
+      try {
+        const res = await supabase.from('child_settings').upsert([payload], { onConflict: 'child_id' });
+        if (res && res.error) {
+          console.error('upsertChildSettingsVpn error', res.error);
+          return false;
+        }
+        try { localStorage.setItem('child_settings_last_updated', String(Date.now())); } catch (ignore) {}
+        return true;
+      } catch (err) {
+        console.error('upsertChildSettingsVpn unexpected', err);
+        return false;
+      }
+    }
+
+    const vpnToggleEl = $id('vpnToggle');
+    if (vpnToggleEl) {
+      vpnToggleEl.addEventListener('change', async (e) => {
+        const childId = (() => { try { return localStorage.getItem('active_child_id'); } catch (e) { return null; } })();
+        if (!childId) {
+          alert('Select a child first.');
+          vpnToggleEl.checked = !vpnToggleEl.checked;
+          return;
+        }
+        const newState = !!vpnToggleEl.checked;
+        // optimistic UI
+        $id('vpnLabel').textContent = newState ? 'ON' : 'OFF';
+        vpnToggleEl.disabled = true;
+        const ok = await upsertChildSettingsVpn(childId, newState);
+        if (!ok) {
+          alert('Failed to save VPN setting.');
+          vpnToggleEl.checked = !newState;
+          $id('vpnLabel').textContent = vpnToggleEl.checked ? 'ON' : 'OFF';
+        }
+        vpnToggleEl.disabled = false;
+      });
+    }
+
+    // update UI when child changes or storage updated in another tab
+    window.addEventListener('childChanged', (e) => {
+      const newId = e && e.detail && e.detail.id ? e.detail.id : (() => { try { return localStorage.getItem('active_child_id'); } catch (e) { return null; } })();
+      loadChildSettingsToUI(newId);
+    });
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'child_settings_last_updated' || e.key === 'active_child_id') {
+        const active = (() => { try { return localStorage.getItem('active_child_id'); } catch (e) { return null; } })();
+        loadChildSettingsToUI(active);
+      }
+    });
+
+  </script>
+</body>
+</html>

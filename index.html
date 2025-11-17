@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChildGuard | Login & Register</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+    * { box-sizing: border-box; }
+    body {
+      background: #f6f5f7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+      position: relative;
+      overflow: hidden;
+      width: 850px;
+      max-width: 100%;
+      min-height: 480px;
+      transition: all 0.6s ease-in-out;
+    }
+    .form-container { position: absolute; top: 0; height: 100%; transition: all 0.6s ease-in-out; }
+    .sign-in-container { left: 0; width: 50%; z-index: 2; }
+    .container.right-panel-active .sign-in-container { transform: translateX(100%); }
+    .sign-up-container { left: 0; width: 50%; opacity: 0; z-index: 1; }
+    .container.right-panel-active .sign-up-container { transform: translateX(100%); opacity: 1; z-index: 5; animation: show 0.6s; }
+    @keyframes show { 0%,49.99%{opacity:0;z-index:1}50%,100%{opacity:1;z-index:5} }
+    form { background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 50px; height:100%; text-align:center; }
+    h1 { font-weight:bold; margin:0 0 20px; }
+    input { background:#eee; border:none; padding:12px 15px; margin:8px 0; width:100%; border-radius:5px; outline:none; }
+    button { border-radius:20px; border:1px solid #007bff; background-color:#007bff; color:#fff; font-size:14px; font-weight:bold; padding:12px 45px; letter-spacing:1px; transition:transform 80ms ease-in; cursor:pointer; margin-top:10px; }
+    button:hover { transform:scale(1.05); background-color:#005ecb; }
+    button.ghost { background:transparent; border-color:#fff; }
+    .overlay-container { position:absolute; top:0; left:50%; width:50%; height:100%; overflow:hidden; transition:transform 0.6s ease-in-out; z-index:100; }
+    .container.right-panel-active .overlay-container { transform: translateX(-100%); }
+    .overlay { background: linear-gradient(to right, #007bff, #4e9ffb); color:#fff; position:relative; left:-100%; height:100%; width:200%; transform:translateX(0); transition:transform 0.6s ease-in-out; }
+    .container.right-panel-active .overlay { transform: translateX(50%); }
+    .overlay-panel { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 40px; text-align:center; top:0; height:100%; width:50%; transition:transform 0.6s ease-in-out; }
+    .overlay-left { transform: translateX(-20%); }
+    .container.right-panel-active .overlay-left { transform: translateX(0); }
+    .overlay-right { right:0; transform:translateX(0); }
+    .container.right-panel-active .overlay-right { transform:translateX(20%); }
+    @media (max-width:768px) { .container{width:100%; min-height:600px;} .form-container{width:100%;} .overlay-container{display:none;} }
+
+    /* ✅ Popup message */
+    #popup {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #28a745;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 30px;
+      font-weight: bold;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transition: opacity 0.4s ease, top 0.4s ease;
+      z-index: 9999;
+    }
+    #popup.show {
+      opacity: 1;
+      top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div id="popup"></div>
+
+  <div class="container" id="container">
+    <!-- Sign Up Panel -->
+    <div class="form-container sign-up-container">
+      <form id="registerForm">
+        <h1>Create Account</h1>
+        <input id="rName" type="text" placeholder="Full Name" required />
+        <input id="rEmail" type="email" placeholder="Email" required />
+        <input id="rPassword" type="password" placeholder="Password" required />
+        <button type="submit" id="registerBtn">Register</button>
+      </form>
+    </div>
+
+    <!-- Sign In Panel -->
+    <div class="form-container sign-in-container">
+      <form id="loginForm">
+        <h1>Login</h1>
+        <input id="email" type="email" placeholder="Email" required />
+        <input id="password" type="password" placeholder="Password" required />
+        <button type="submit" id="loginBtn">Login</button>
+      </form>
+    </div>
+
+    <!-- Overlay -->
+    <div class="overlay-container">
+      <div class="overlay">
+        <div class="overlay-panel overlay-left">
+          <h1>Welcome Back!</h1>
+          <p>Already have an account? Login here</p>
+          <button class="ghost" id="signIn">Login</button>
+        </div>
+        <div class="overlay-panel overlay-right">
+          <h1>Hello, Welcome!</h1>
+          <p>Don’t have an account? Create one now</p>
+          <button class="ghost" id="signUp">Register</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+  import supabase from "./assets/js/supabaseClient.js";
+
+  const signUpButton = document.getElementById("signUp");
+  const signInButton = document.getElementById("signIn");
+  const container = document.getElementById("container");
+  const popup = document.getElementById("popup");
+
+  signUpButton.addEventListener("click", () =>
+    container.classList.add("right-panel-active")
+  );
+  signInButton.addEventListener("click", () =>
+    container.classList.remove("right-panel-active")
+  );
+
+  // Popup helper (keeps your original behavior)
+  let popupTimer = null;
+  function showPopup(message, color = "#28a745", duration = 2500) {
+    popup.textContent = message;
+    popup.style.backgroundColor = color;
+    popup.classList.add("show");
+    if (popupTimer) clearTimeout(popupTimer);
+    popupTimer = setTimeout(() => popup.classList.remove("show"), duration);
+  }
+
+  // Disable/enable buttons to prevent double submits
+  function setProcessing(isProcessing) {
+    const regBtn = document.getElementById("registerBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    if (regBtn) regBtn.disabled = isProcessing;
+    if (loginBtn) loginBtn.disabled = isProcessing;
+    // also disable overlay ghost buttons while processing
+    document.querySelectorAll('.ghost').forEach(b => b.disabled = isProcessing);
+  }
+
+  // ✅ REGISTER with Supabase Auth (normalized email, try/catch, debug logs)
+  document
+    .getElementById("registerForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setProcessing(true);
+
+      const name = document.getElementById("rName").value.trim();
+      const email = document.getElementById("rEmail").value.trim().toLowerCase();
+      const password = document.getElementById("rPassword").value;
+
+      if (!name || !email || !password) {
+        showPopup("Please fill all fields", "#dc3545");
+        setProcessing(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } },
+        });
+
+        // Debug log (open console to inspect)
+        console.log("signUp response:", { data, error });
+
+        if (error) {
+          console.error("Signup error:", error);
+          showPopup("Registration failed: " + (error.message || "Unknown error"), "#dc3545");
+          setProcessing(false);
+          return;
+        }
+
+        // Prompt to check email (most projects require confirmation by default)
+        showPopup("✅ Account created.", "#28a745", 4000);
+
+        document.getElementById("rPassword").value = "";
+        setProcessing(false);
+      } catch (err) {
+        console.error("Signup unexpected error:", err);
+        showPopup("Network or unexpected error, try again.", "#dc3545");
+        setProcessing(false);
+      }
+    });
+
+  // ✅ LOGIN with Supabase Auth (normalized email, detailed error handling)
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    const email = document.getElementById("email").value.trim().toLowerCase();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      showPopup("Please enter email and password", "#dc3545");
+      setProcessing(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      // Debug log (open console to inspect)
+      console.log("signIn response:", { data, error });
+
+      if (error) {
+        console.error("Login error:", error);
+        const msg = error.message || "";
+        if (/confirm|confirmation|confirmed/i.test(msg)) {
+          showPopup("Email not confirmed — please check your email and confirm.", "#dc3545");
+        } else {
+          showPopup(msg || "Invalid email or password", "#dc3545");
+        }
+        setProcessing(false);
+        return;
+      }
+
+      console.log("Login success:", data);
+      showPopup("✅ Login successful!");
+      setTimeout(() => (window.location.href = "home.html"), 1200);
+    } catch (err) {
+      console.error("Login unexpected error:", err);
+      showPopup("Network error — please try again.", "#dc3545");
+      setProcessing(false);
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ChildGuard — Blocked Sites</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="assets/js/website_blocking.js" defer></script>
+  <script type="module" src="assets/js/navigation.js" defer></script>
+</head>
+<body>
+  <div id="navbar"></div>
+  <main>
+    <h1>Website Blocking</h1>
+    <div class="card">
+      <form id="addSiteForm" style="display:flex;gap:8px;align-items:center">
+        <input id="newSiteInput" placeholder="example.com" style="flex:1;padding:10px;border-radius:8px;border:1px solid #eee" />
+        <button class="btn-small" type="submit">Add</button>
+      </form>
+
+      <table class="table" style="margin-top:12px">
+        <thead><tr><th>Domain</th><th>Added</th><th>Action</th></tr></thead>
+        <tbody id="blockedSitesTbody"><tr><td colspan="3">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>
