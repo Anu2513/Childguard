@@ -1,3 +1,4 @@
+// assets/js/navigation.js
 import supabase from './supabaseClient.js';
 import { safeText } from './utils.js';
 
